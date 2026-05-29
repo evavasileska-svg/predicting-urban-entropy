@@ -1,0 +1,42 @@
+# python environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.Python
+
+# data — raw graphs are large binary files
+data/raw/
+data/raw_global/
+data/urban_atlas/
+
+# processed data — regeneratable from scripts
+data/processed/
+data/processed_global/
+cache/
+
+# results — regeneratable
+results/
+
+# jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# rasterio / GDAL temp files
+*.tif
+*.tiff
+*.geotiff
+
+# environment variables and API keys — never commit these
+.env
+*.env
+
+# VS Code settings
+.vscode/
+
+# Windows system files
+Thumbs.db
+desktop.ini
+
+# Mac system files
+.DS_Store
