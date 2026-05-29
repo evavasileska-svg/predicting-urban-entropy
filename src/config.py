@@ -113,6 +113,12 @@ CITIES = {
     'tallinn':       'Tallinn, Estonia',
     'thessaloniki':  'Thessaloniki, Greece',
     'vilnius':       'Vilnius, Lithuania',
+
+    
+    # Additional ordered cities (added to balance entropy distribution)
+    'mendoza':  'Departamento Capital, Mendoza, Argentina',
+    'sapporo':  'Sapporo, Hokkaido, Japan',
+    'tashkent': 'Tashkent, Uzbekistan',
 }
 
 # sanity check on import
