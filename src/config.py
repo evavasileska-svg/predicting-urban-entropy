@@ -119,6 +119,16 @@ CITIES = {
     'mendoza':  'Departamento Capital, Mendoza, Argentina',
     'sapporo':  'Sapporo, Hokkaido, Japan',
     'tashkent': 'Tashkent, Uzbekistan',
+
+        # Boeing 2019 top-ordered cities (added for ordered tail coverage)
+    'minneapolis': 'Minneapolis, USA',
+    'seattle':     'Seattle, USA',
+    'detroit':     'Detroit, USA',
+    'lasvegas':    'Las Vegas, USA',
+    'cleveland':   'Cleveland, USA',
+    'orlando':     'Orlando, USA',
+    'toronto':     'Toronto, Canada',
+    'houston':     'Houston, USA',
 }
 
 # sanity check on import
