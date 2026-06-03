@@ -30,7 +30,7 @@ import networkx as nx
 import geopandas as gpd
 from shapely.geometry import box
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 from src.config import RAW_DIR, PROCESSED_DIR, PATCH_SIZE_M
 
 

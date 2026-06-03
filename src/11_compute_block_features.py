@@ -4,9 +4,10 @@ Compute block-level morphological features for each patch.
 A "block" is an enclosed polygon formed by surrounding streets.
 For each patch:
   1. Extract street geometries within the patch boundary
-  2. Polygonize them to find block polygons
-  3. Compute geometric features for each block
-  4. Aggregate to patch-level statistics
+  2. Filter to drive-network edges only (exclude footways, paths, etc.)
+  3. Polygonize them to find block polygons
+  4. Compute geometric features for each block
+  5. Aggregate to patch-level statistics
 
 Features computed (using momepy where available):
   - n_blocks           : count of blocks in patch
@@ -35,38 +36,84 @@ import pandas as pd
 import osmnx as ox
 import networkx as nx
 import geopandas as gpd
-from shapely.geometry import box, Polygon, MultiPolygon
+from shapely.geometry import box, LineString, MultiLineString
 from shapely.ops import polygonize, unary_union
 
 import momepy
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 from src.config import RAW_DIR, PROCESSED_DIR, PATCH_SIZE_M
 
 warnings.filterwarnings('ignore')
 
-# Minimum block area to consider (m²) — filters out tiny slivers
-MIN_BLOCK_AREA = 100.0
+# ── filter configuration ───────────────────────────────────────────
+# minimum block area (m²) — filters out polygonization artifacts
+MIN_BLOCK_AREA = 500.0
 
-# Maximum block area as fraction of patch — filters out the patch boundary
+# maximum block area as fraction of patch — filters out the patch boundary
 PATCH_AREA = PATCH_SIZE_M * PATCH_SIZE_M
-MAX_BLOCK_AREA = 0.95 * PATCH_AREA   # exclude polygons >95% of patch area
+MAX_BLOCK_AREA = 0.95 * PATCH_AREA
+
+# highway types to KEEP for block extraction (real streets)
+DRIVE_HIGHWAY_TYPES = {
+    'motorway', 'motorway_link',
+    'trunk', 'trunk_link',
+    'primary', 'primary_link',
+    'secondary', 'secondary_link',
+    'tertiary', 'tertiary_link',
+    'unclassified',
+    'residential',
+    'living_street',
+    'road',
+}
+
+
+def filter_drive_edges(edges_gdf):
+    """
+    Keep only edges that represent drivable streets (real block boundaries).
+    Filters out footways, pedestrian paths, service roads, etc.
+    """
+    def is_drive(hw_value):
+        """Check if a highway tag represents a drivable street."""
+        if hw_value is None:
+            return False
+        # highway tag can sometimes be a list (multiple types)
+        if isinstance(hw_value, list):
+            return any(h in DRIVE_HIGHWAY_TYPES for h in hw_value)
+        return hw_value in DRIVE_HIGHWAY_TYPES
+
+    if 'highway' not in edges_gdf.columns:
+        # if no highway column exists, keep everything as fallback
+        return edges_gdf
+
+    mask = edges_gdf['highway'].apply(is_drive)
+    return edges_gdf[mask]
 
 
 def extract_blocks_for_patch(edges_in_patch, patch_geom):
     """
     Polygonize street edges within a patch to extract block polygons.
-
     Returns a GeoDataFrame of block polygons (or None if no blocks).
     """
     if len(edges_in_patch) == 0:
         return None
 
-    # union all edge geometries to a single multilinestring,
-    # then polygonize to find enclosed regions
-    unioned = unary_union(edges_in_patch.geometry.values)
+    # collect line geometries (skip self-loops and degenerate edges)
+    lines = []
+    for geom in edges_in_patch.geometry.values:
+        if geom.is_empty or not geom.is_valid:
+            continue
+        if isinstance(geom, LineString):
+            lines.append(geom)
+        elif isinstance(geom, MultiLineString):
+            lines.extend(geom.geoms)
 
+    if len(lines) == 0:
+        return None
+
+    # union all line geometries then polygonize
     try:
+        unioned = unary_union(lines)
         polygons = list(polygonize(unioned))
     except Exception:
         return None
@@ -74,24 +121,22 @@ def extract_blocks_for_patch(edges_in_patch, patch_geom):
     if len(polygons) == 0:
         return None
 
-    # filter by size: not too small (noise) and not too large (whole patch)
+    # filter by size and centroid location
     valid_blocks = []
     for poly in polygons:
         if not poly.is_valid:
             continue
         area = poly.area
         if MIN_BLOCK_AREA <= area <= MAX_BLOCK_AREA:
-            # also check the block centroid is inside the patch
             if patch_geom.contains(poly.centroid):
                 valid_blocks.append(poly)
 
     if len(valid_blocks) == 0:
         return None
 
-    blocks_gdf = gpd.GeoDataFrame(
+    return gpd.GeoDataFrame(
         geometry=valid_blocks, crs=edges_in_patch.crs
     )
-    return blocks_gdf
 
 
 def compute_block_features(blocks_gdf):
@@ -107,12 +152,14 @@ def compute_block_features(blocks_gdf):
     areas = blocks_gdf.geometry.area.values
     mean_block_area = float(np.mean(areas))
     std_block_area  = float(np.std(areas))
-    cv_block_area = std_block_area / mean_block_area if mean_block_area > 0 else 0.0
+    cv_block_area = (std_block_area / mean_block_area
+                     if mean_block_area > 0 else 0.0)
 
     # shape features via momepy
-    # momepy takes a GeoDataFrame and returns a Series of values
     try:
         eri = momepy.equivalent_rectangular_index(blocks_gdf).values
+        # clip to valid range [0, 1] - momepy can return slightly > 1
+        eri = np.clip(eri, 0, 1)
         mean_block_eri = float(np.nanmean(eri))
     except Exception:
         mean_block_eri = np.nan
@@ -163,6 +210,14 @@ def process_city_patches(code: str, patches_df: pd.DataFrame):
     G_proj = ox.project_graph(G)
     _, edges_proj = ox.graph_to_gdfs(G_proj)
 
+    # filter to drive-network edges only (real street network)
+    edges_drive = filter_drive_edges(edges_proj)
+    n_total_edges = len(edges_proj)
+    n_drive_edges = len(edges_drive)
+    print(f"  {code:15s} — kept {n_drive_edges:,} of {n_total_edges:,} "
+          f"edges ({100*n_drive_edges/n_total_edges:.1f}%) "
+          f"after drive filter")
+
     results = []
     t0 = time.time()
 
@@ -176,27 +231,38 @@ def process_city_patches(code: str, patches_df: pd.DataFrame):
         )
 
         # find edges that intersect the patch
-        edge_mask = edges_proj.geometry.intersects(patch_geom)
-        edges_in_patch = edges_proj[edge_mask].copy()
+        edge_mask = edges_drive.geometry.intersects(patch_geom)
+        edges_in_patch = edges_drive[edge_mask].copy()
 
         # clip edges to patch boundary
         edges_in_patch['geometry'] = edges_in_patch.geometry.intersection(
             patch_geom
         )
 
-        # remove empty or invalid geometries after clipping
+        # remove empty or invalid geometries
         edges_in_patch = edges_in_patch[
             ~edges_in_patch.geometry.is_empty &
             edges_in_patch.geometry.is_valid
         ]
 
         if len(edges_in_patch) == 0:
+            results.append({
+                'patch_id':           patch['patch_id'],
+                'city_code':          code,
+                'n_blocks':           0,
+                'mean_block_area':    np.nan,
+                'std_block_area':     np.nan,
+                'cv_block_area':      np.nan,
+                'mean_block_eri':     np.nan,
+                'mean_block_compact': np.nan,
+                'mean_block_elong':   np.nan,
+                'mean_block_convex':  np.nan,
+            })
             continue
 
         # extract blocks
         blocks_gdf = extract_blocks_for_patch(edges_in_patch, patch_geom)
         if blocks_gdf is None or len(blocks_gdf) == 0:
-            # patch has no blocks - skip or record zeros
             results.append({
                 'patch_id':           patch['patch_id'],
                 'city_code':          code,
@@ -240,7 +306,7 @@ def main():
     df = pd.read_csv(sample_path)
     print(f"Loaded {len(df):,} stratified patches from "
           f"{df['city_code'].nunique()} cities\n")
-    print(f"Computing block features (this may take 30-60 minutes)\n")
+    print(f"Computing block features with drive-network filter\n")
 
     all_results = []
     start_time = time.time()
@@ -286,7 +352,14 @@ def main():
     print(f"5 most rectangular patches (high ERI):")
     top_eri = valid_df.nlargest(5, 'mean_block_eri')
     print(top_eri[['patch_id', 'city_code', 'mean_block_eri',
-                   'n_blocks']].to_string(index=False))
+                   'n_blocks', 'mean_block_area']].to_string(index=False))
+    print()
+
+    # largest blocks (sanity check)
+    print(f"5 patches with largest mean block area:")
+    top_area = valid_df.nlargest(5, 'mean_block_area')
+    print(top_area[['patch_id', 'city_code', 'mean_block_area',
+                    'n_blocks']].to_string(index=False))
 
 
 if __name__ == "__main__":

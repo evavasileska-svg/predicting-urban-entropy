@@ -33,7 +33,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 from src.config import PROCESSED_DIR, FIGURES_DIR
 
 

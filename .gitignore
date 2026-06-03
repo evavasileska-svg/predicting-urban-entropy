@@ -12,7 +12,6 @@ data/raw_global/
 data/urban_atlas/
 
 # processed data — regeneratable from scripts
-data/processed/
 data/processed_global/
 cache/
 
