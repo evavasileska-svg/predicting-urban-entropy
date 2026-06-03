@@ -38,11 +38,10 @@ from src.config import PROCESSED_DIR, FIGURES_DIR
 
 
 # ── stratification configuration ───────────────────────────────────
-TARGET_TOTAL    = 5000          # target final sample size
-N_BINS          = 20            # number of entropy bins
+TARGET_TOTAL    = 2500          # target final sample size
+N_BINS          = 10            # number of entropy bins
 TARGET_PER_BIN  = TARGET_TOTAL // N_BINS   # 250 per bin
 RANDOM_SEED     = 42            # for reproducibility
-
 
 def stratified_sample():
     """Apply stratified sampling on Ho."""
