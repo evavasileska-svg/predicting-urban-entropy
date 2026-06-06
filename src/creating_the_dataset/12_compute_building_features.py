@@ -112,15 +112,16 @@ def download_buildings_for_city(code: str, name: str, patches_df: pd.DataFrame):
                 ['Polygon', 'MultiPolygon']
             )].copy()
 
+            # drop all attribute columns - we only need geometry
+            # OSM building data has hundreds of tag columns with problematic
+            # names (colons, mixed case) that GeoPackage cannot save
+            buildings = buildings[['geometry']].copy()
+
             # project to local UTM
             buildings_proj = buildings.to_crs(crs_utm)
 
             # save
             buildings_proj.to_file(cache_path, driver='GPKG')
-            size_mb = cache_path.stat().st_size / (1024 * 1024)
-            print(f"  {code:15s} — DONE: {len(buildings_proj):,} buildings, "
-                  f"{size_mb:.1f} MB ({elapsed:.0f}s)")
-            return cache_path
 
         except Exception as e:
             # actual error - retry if attempts remaining
