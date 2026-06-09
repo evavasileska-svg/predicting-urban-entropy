@@ -87,10 +87,11 @@ def download_buildings_for_city(code: str, name: str, patches_df: pd.DataFrame):
 
         try:
             t0 = time.time()
-            buildings = ox.features_from_bbox(
-                bbox=(wgs_bounds[0], wgs_bounds[1],
-                      wgs_bounds[2], wgs_bounds[3]),
-                tags={'building': True},
+            # use features_from_place instead of features_from_bbox
+            # place-based queries use the city's administrative boundary
+            # which is more reliable than raw bbox queries for large cities
+            buildings = ox.features_from_place(
+                name, tags={'building': True}
             )
             elapsed = time.time() - t0
 

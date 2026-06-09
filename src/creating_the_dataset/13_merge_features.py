@@ -5,8 +5,6 @@ Combines:
   - patch_stratified_sample.csv (2,500 patches, entropy target + metadata)
   - patch_graph_features.csv    (graph topology features)
   - patch_circuity.csv          (network circuity)
-  - patch_block_features.csv    (block-level features)
-  - patch_building_features.csv (building footprint features)
 
 Produces two output files:
   - patch_training_data_full.csv  : everything (metadata + features + target)
@@ -30,8 +28,6 @@ from src.config import PROCESSED_DIR
 DROP_FROM_GRAPH    = ['n_edges_used']
 DROP_FROM_CIRCUITY = ['total_network_length', 'total_straight_length',
                       'n_edges_in_circuity']
-DROP_FROM_BLOCKS   = []
-DROP_FROM_BUILDINGS = []
 
 # target variable for ML
 TARGET_COLUMN = 'entropy_normalised'
@@ -61,23 +57,18 @@ def merge_features():
     print(f"{'=' * 70}\n")
 
     # ── load all input CSVs ────────────────────────────────────────
-    sample_path    = PROCESSED_DIR / "patch_stratified_sample.csv"
-    graph_path     = PROCESSED_DIR / "patch_graph_features.csv"
-    circuity_path  = PROCESSED_DIR / "patch_circuity.csv"
-    blocks_path    = PROCESSED_DIR / "patch_block_features.csv"
-    buildings_path = PROCESSED_DIR / "patch_building_features.csv"
+    sample_path   = PROCESSED_DIR / "patch_stratified_sample.csv"
+    graph_path    = PROCESSED_DIR / "patch_graph_features.csv"
+    circuity_path = PROCESSED_DIR / "patch_circuity.csv"
 
-    for path in [sample_path, graph_path, circuity_path,
-                 blocks_path, buildings_path]:
+    for path in [sample_path, graph_path, circuity_path]:
         if not path.exists():
             print(f"ERROR: {path.name} not found")
             return
 
-    sample    = pd.read_csv(sample_path)
-    graph     = pd.read_csv(graph_path)
-    circuity  = pd.read_csv(circuity_path)
-    blocks    = pd.read_csv(blocks_path)
-    buildings = pd.read_csv(buildings_path)
+    sample   = pd.read_csv(sample_path)
+    graph    = pd.read_csv(graph_path)
+    circuity = pd.read_csv(circuity_path)
 
     print(f"Loaded inputs:")
     print(f"  Sample:    {len(sample):,} patches "
@@ -86,10 +77,6 @@ def merge_features():
           f"({len(graph.columns)} columns)")
     print(f"  Circuity:  {len(circuity):,} patches "
           f"({len(circuity.columns)} columns)")
-    print(f"  Blocks:    {len(blocks):,} patches "
-          f"({len(blocks.columns)} columns)")
-    print(f"  Buildings: {len(buildings):,} patches "
-          f"({len(buildings.columns)} columns)")
     print()
 
     # ── prepare each features dataframe for merge ───────────────────
@@ -100,18 +87,14 @@ def merge_features():
         df = df.drop(columns=['city_code'], errors='ignore')
         return df
 
-    graph_clean     = prep(graph,     DROP_FROM_GRAPH)
-    circuity_clean  = prep(circuity,  DROP_FROM_CIRCUITY)
-    blocks_clean    = prep(blocks,    DROP_FROM_BLOCKS)
-    buildings_clean = prep(buildings, DROP_FROM_BUILDINGS)
+    graph_clean    = prep(graph,    DROP_FROM_GRAPH)
+    circuity_clean = prep(circuity, DROP_FROM_CIRCUITY)
 
     # ── left-join everything onto the sample ────────────────────────
     # sample is the master because it has all 2,500 patches.
     # left-join preserves all sample rows; missing features become NaN
-    merged = sample.merge(graph_clean,     on='patch_id', how='left')
-    merged = merged.merge(circuity_clean,  on='patch_id', how='left')
-    merged = merged.merge(blocks_clean,    on='patch_id', how='left')
-    merged = merged.merge(buildings_clean, on='patch_id', how='left')
+    merged = sample.merge(graph_clean,    on='patch_id', how='left')
+    merged = merged.merge(circuity_clean, on='patch_id', how='left')
 
     n_rows = len(merged)
     n_cols = len(merged.columns)
