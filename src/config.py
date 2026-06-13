@@ -140,3 +140,5 @@ if __name__ == "__main__":
     print(f"Min segments:      {MIN_SEGMENTS}")
     print(f"Target patches:    {TARGET_PATCH_COUNT}")
     print(f"Entropy bins:      {N_ENTROPY_BINS}")
+
+    

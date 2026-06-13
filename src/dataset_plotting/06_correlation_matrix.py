@@ -33,6 +33,7 @@ FEATURES = [
     'meshedness',
     'intersection_density', 'street_density',
     'circuity',
+    'distance_to_center_km',
 ]
 
 

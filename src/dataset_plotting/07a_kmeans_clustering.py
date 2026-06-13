@@ -18,14 +18,13 @@ from src.config import PROCESSED_DIR, FIGURES_DIR, CITIES
 TARGET = 'entropy_normalised'
 DISTANCE_FEATURE = 'distance_to_center_km'
 
+# the 9 features after dropping redundancies
 FEATURES = [
-    'n_4way', 'n_3way', 'n_deadend',
+    'n_3way', 'n_deadend',
     'proportion_4way', 'proportion_3way', 'proportion_deadend',
-    'mean_degree',
     'mean_edge_length', 'total_edge_length',
-    'meshedness',
-    'intersection_density', 'street_density',
     'circuity',
+    'distance_to_center_km',
 ]
 
 K_RANGE = range(2, 11)
@@ -178,7 +177,7 @@ def plot_k_selection(eval_df):
     ax.legend(fontsize=10)
 
     plt.tight_layout()
-    output_path = FIGURES_DIR / "clustering_k_selection.png"
+    output_path = FIGURES_DIR / "clustering_k_selection_v2.png"
     plt.savefig(output_path, dpi=120, bbox_inches='tight')
     plt.close()
     print(f"\nSaved: {output_path}")
@@ -281,7 +280,7 @@ def per_region_summary(df, labels):
 def plot_cluster_pca_comparison(X_pca, labels, df, bin_edges, k):
     fig, axes = plt.subplots(2, 2, figsize=(18, 16))
 
-    # Panel 1 (top-left): colored by cluster
+    # Panel 1: clusters
     ax = axes[0, 0]
     ax.set_facecolor('white')
     ax.grid(color='lightgrey', linestyle='-',
@@ -306,7 +305,7 @@ def plot_cluster_pca_comparison(X_pca, labels, df, bin_edges, k):
     ax.legend(loc='upper right', fontsize=9, frameon=True,
               framealpha=0.9)
 
-    # Panel 2 (top-right): colored by entropy bin
+    # Panel 2: entropy bins
     ax = axes[0, 1]
     ax.set_facecolor('white')
     ax.grid(color='lightgrey', linestyle='-',
@@ -340,7 +339,7 @@ def plot_cluster_pca_comparison(X_pca, labels, df, bin_edges, k):
     ax.legend(loc='upper right', fontsize=7, frameon=True,
               framealpha=0.9, ncol=1)
 
-    # Panel 3 (bottom-left): colored by region
+    # Panel 3: region
     ax = axes[1, 0]
     ax.set_facecolor('white')
     ax.grid(color='lightgrey', linestyle='-',
@@ -366,7 +365,7 @@ def plot_cluster_pca_comparison(X_pca, labels, df, bin_edges, k):
     ax.legend(loc='upper right', fontsize=9, frameon=True,
               framealpha=0.9)
 
-    # Panel 4 (bottom-right): colored by distance to city center
+    # Panel 4: distance to city center
     ax = axes[1, 1]
     ax.set_facecolor('white')
     ax.grid(color='lightgrey', linestyle='-',
@@ -375,9 +374,6 @@ def plot_cluster_pca_comparison(X_pca, labels, df, bin_edges, k):
 
     if DISTANCE_FEATURE in df.columns:
         distances = df[DISTANCE_FEATURE].values
-
-        # cap colormap at 95th percentile so a few far-out patches
-        # don't compress the rest of the colour range
         dist_min = np.nanmin(distances)
         dist_max = np.nanpercentile(distances, 95)
 
@@ -409,12 +405,13 @@ def plot_cluster_pca_comparison(X_pca, labels, df, bin_edges, k):
     ax.set_ylabel('PC2', fontsize=11)
 
     fig.suptitle(
-        "PCA space: K-Means clusters, entropy, region, and distance",
+        f"PCA space: K-Means clusters, entropy, region, distance "
+        f"({len(FEATURES)} features)",
         fontsize=14, y=0.995,
     )
 
     plt.tight_layout(rect=[0, 0, 1, 0.985])
-    output_path = FIGURES_DIR / "clustering_pca_comparison.png"
+    output_path = FIGURES_DIR / "clustering_pca_comparison_v2.png"
     plt.savefig(output_path, dpi=120, bbox_inches='tight')
     plt.close()
     print(f"\nSaved: {output_path}")
@@ -432,7 +429,13 @@ def main():
     missing = [f for f in FEATURES if f not in df.columns]
     if missing:
         print(f"ERROR: missing features: {missing}")
+        print(f"Did you run 14a_merge_features.py first?")
         return
+
+    print(f"Using {len(FEATURES)} features for clustering:")
+    for f in FEATURES:
+        print(f"  - {f}")
+    print()
 
     n_nan = df[FEATURES].isna().any(axis=1).sum()
     if n_nan > 0:
@@ -451,18 +454,6 @@ def main():
             print(f"  {region:<15} {n:>4} patches")
     print()
 
-    # check if distance feature is available
-    if DISTANCE_FEATURE in df.columns:
-        valid_dist = df[DISTANCE_FEATURE].notna().sum()
-        print(f"{DISTANCE_FEATURE}: {valid_dist:,} of {len(df):,} "
-              f"patches have valid values")
-        print(f"  range: {df[DISTANCE_FEATURE].min():.2f} - "
-              f"{df[DISTANCE_FEATURE].max():.2f} km")
-        print(f"  mean:  {df[DISTANCE_FEATURE].mean():.2f} km")
-    else:
-        print(f"WARNING: {DISTANCE_FEATURE} not in dataset.")
-    print()
-
     X = df[FEATURES].values
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
@@ -477,7 +468,7 @@ def main():
 
     print(f"\nBest k by silhouette score: {best_k_silhouette}")
 
-    chosen_k = 5
+    chosen_k = 4
     print(f"Running final clustering with k = {chosen_k}")
     print(f"(Note: silhouette would suggest k = {best_k_silhouette}, "
           f"but k = {chosen_k} chosen for finer archetypes)\n")
@@ -490,7 +481,6 @@ def main():
     per_region_summary(df, labels)
 
     bin_edges = compute_bin_edges(df[TARGET])
-
     plot_cluster_pca_comparison(X_pca, labels, df, bin_edges, chosen_k)
 
 

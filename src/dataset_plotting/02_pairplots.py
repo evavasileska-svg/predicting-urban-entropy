@@ -36,6 +36,7 @@ FEATURES_TO_PLOT = [
     'meshedness',
     'intersection_density', 'street_density',
     'circuity',
+    'distance_to_center_km',
 ]
 
 # output directory for individual feature plots
