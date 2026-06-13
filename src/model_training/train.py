@@ -8,7 +8,8 @@ Usage
 -----
     python src/model_training/train.py --member edu --feature_set core
     python src/model_training/train.py --member eva --feature_set full
-    python src/model_training/train.py --member edu --feature_set core \\
+    python src/model_training/train.py --member chloe --feature_set core
+    python src/model_training/train.py --member chloe --feature_set full \\
         --data path/to/custom_training_data.csv
 
 Results are saved to results/model_results/<member>/.
@@ -128,7 +129,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--member', required=True,
-        help='Your identifier, used as the results subfolder (e.g. edu, eva)'
+        help='Your identifier, used as the results subfolder (e.g. edu, eva, chloe)'
     )
     parser.add_argument(
         '--feature_set', choices=['graph', 'core', 'full'], default='core',
