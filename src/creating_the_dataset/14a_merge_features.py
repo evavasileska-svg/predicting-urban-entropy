@@ -20,6 +20,9 @@ FEATURES_TO_DROP = [
     'street_density',
     'n_4way',
     'intersection_density',
+    'elev_mean',
+    'elev_std',
+    'elev_range',
 ]
 
 TARGET_COLUMN = 'entropy_normalised'
@@ -49,8 +52,11 @@ def merge_features():
     sample_path   = PROCESSED_DIR / "patch_stratified_sample.csv"
     graph_path    = PROCESSED_DIR / "patch_graph_features.csv"
     circuity_path = PROCESSED_DIR / "patch_circuity.csv"
+    terrain_path  = PROCESSED_DIR / "patch_terrain_features.csv"
+    distance_path = PROCESSED_DIR / "patch_distance_to_center.csv"
 
-    for path in [sample_path, graph_path, circuity_path]:
+    for path in [sample_path, graph_path, circuity_path, terrain_path,
+                 distance_path]:
         if not path.exists():
             print(f"ERROR: {path.name} not found")
             return
@@ -58,6 +64,8 @@ def merge_features():
     sample   = pd.read_csv(sample_path)
     graph    = pd.read_csv(graph_path)
     circuity = pd.read_csv(circuity_path)
+    terrain  = pd.read_csv(terrain_path)
+    distance = pd.read_csv(distance_path)
 
     print(f"Loaded inputs:")
     print(f"  Sample:    {len(sample):,} patches "
@@ -66,6 +74,10 @@ def merge_features():
           f"({len(graph.columns)} columns)")
     print(f"  Circuity:  {len(circuity):,} patches "
           f"({len(circuity.columns)} columns)")
+    print(f"  Terrain:   {len(terrain):,} patches "
+          f"({len(terrain.columns)} columns)")
+    print(f"  Distance:  {len(distance):,} patches "
+          f"({len(distance.columns)} columns)")
     print()
 
     # prepare each features dataframe for merge
@@ -76,10 +88,14 @@ def merge_features():
 
     graph_clean    = prep(graph,    DROP_FROM_GRAPH)
     circuity_clean = prep(circuity, DROP_FROM_CIRCUITY)
+    terrain_clean  = prep(terrain,  [])
+    distance_clean = prep(distance, [])
 
     # left-join everything onto the sample
     merged = sample.merge(graph_clean,    on='patch_id', how='left')
     merged = merged.merge(circuity_clean, on='patch_id', how='left')
+    merged = merged.merge(terrain_clean,  on='patch_id', how='left')
+    merged = merged.merge(distance_clean, on='patch_id', how='left')
 
     # drop the redundant features
     cols_dropped = []

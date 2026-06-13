@@ -24,15 +24,12 @@ from src.config import PROCESSED_DIR, FIGURES_DIR
 
 TARGET = 'entropy_normalised'
 
-# graph + circuity features (all 100% complete)
 FEATURES = [
-    'n_4way', 'n_3way', 'n_deadend',
+    'n_3way', 'n_deadend',
     'proportion_4way', 'proportion_3way', 'proportion_deadend',
-    'mean_degree',
     'mean_edge_length', 'total_edge_length',
-    'meshedness',
-    'intersection_density', 'street_density',
     'circuity',
+    'elev_mean', 'elev_std', 'elev_range', 'mean_slope',
     'distance_to_center_km',
 ]
 
@@ -187,10 +184,10 @@ def print_correlation_summary(corr_matrix):
 
 
 def main():
-    csv_path = PROCESSED_DIR / "patch_training_data_full.csv"
+    csv_path = PROCESSED_DIR / "dataset_dropped_features_clean.csv"
     if not csv_path.exists():
         print(f"ERROR: {csv_path} not found.")
-        print(f"Run 13_merge_features.py first.")
+        print(f"Run 14a_merge_features.py first.")
         return
 
     df = pd.read_csv(csv_path)
