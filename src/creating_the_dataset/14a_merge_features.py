@@ -105,8 +105,6 @@ def merge_features():
 
     # build the CLEAN version (ML-ready)
     exclude_for_clean = set(METADATA_COLUMNS + ALTERNATIVE_TARGETS)
-    exclude_for_clean.discard('patch_id')
-    exclude_for_clean.discard('city_code')
 
     keep_cols = [
         c for c in merged.columns
@@ -115,12 +113,9 @@ def merge_features():
     ]
     clean = merged[keep_cols].copy()
 
-    # reorder: patch_id, city_code, target, then features
-    feature_cols = [
-        c for c in clean.columns
-        if c not in ('patch_id', 'city_code', TARGET_COLUMN)
-    ]
-    clean = clean[['patch_id', 'city_code', TARGET_COLUMN] + feature_cols]
+    # reorder: target first, then features
+    feature_cols = [c for c in clean.columns if c != TARGET_COLUMN]
+    clean = clean[[TARGET_COLUMN] + feature_cols]
 
     clean_path = PROCESSED_DIR / "dataset_dropped_features_clean.csv"
     clean.to_csv(clean_path, index=False)
