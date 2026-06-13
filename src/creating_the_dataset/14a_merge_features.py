@@ -12,7 +12,6 @@ from src.config import PROCESSED_DIR
 DROP_FROM_GRAPH    = ['n_edges_used']
 DROP_FROM_CIRCUITY = ['total_network_length', 'total_straight_length',
                       'n_edges_in_circuity']
-DROP_FROM_DISTANCE = []
 
 # features to drop from the final dataset (redundant or weak predictors)
 FEATURES_TO_DROP = [
@@ -44,23 +43,21 @@ ALTERNATIVE_TARGETS = [
 def merge_features():
     print(f"{'=' * 70}")
     print(f"Merging features into final training dataset")
-    print(f"(graph + circuity + distance, with redundant features dropped)")
+    print(f"(graph + circuity, with redundant features dropped)")
     print(f"{'=' * 70}\n")
 
-    sample_path    = PROCESSED_DIR / "patch_stratified_sample.csv"
-    graph_path     = PROCESSED_DIR / "patch_graph_features.csv"
-    circuity_path  = PROCESSED_DIR / "patch_circuity.csv"
-    distance_path  = PROCESSED_DIR / "patch_distance_to_center.csv"
+    sample_path   = PROCESSED_DIR / "patch_stratified_sample.csv"
+    graph_path    = PROCESSED_DIR / "patch_graph_features.csv"
+    circuity_path = PROCESSED_DIR / "patch_circuity.csv"
 
-    for path in [sample_path, graph_path, circuity_path, distance_path]:
+    for path in [sample_path, graph_path, circuity_path]:
         if not path.exists():
             print(f"ERROR: {path.name} not found")
             return
 
-    sample    = pd.read_csv(sample_path)
-    graph     = pd.read_csv(graph_path)
-    circuity  = pd.read_csv(circuity_path)
-    distance  = pd.read_csv(distance_path)
+    sample   = pd.read_csv(sample_path)
+    graph    = pd.read_csv(graph_path)
+    circuity = pd.read_csv(circuity_path)
 
     print(f"Loaded inputs:")
     print(f"  Sample:    {len(sample):,} patches "
@@ -69,8 +66,6 @@ def merge_features():
           f"({len(graph.columns)} columns)")
     print(f"  Circuity:  {len(circuity):,} patches "
           f"({len(circuity.columns)} columns)")
-    print(f"  Distance:  {len(distance):,} patches "
-          f"({len(distance.columns)} columns)")
     print()
 
     # prepare each features dataframe for merge
@@ -81,12 +76,10 @@ def merge_features():
 
     graph_clean    = prep(graph,    DROP_FROM_GRAPH)
     circuity_clean = prep(circuity, DROP_FROM_CIRCUITY)
-    distance_clean = prep(distance, DROP_FROM_DISTANCE)
 
     # left-join everything onto the sample
     merged = sample.merge(graph_clean,    on='patch_id', how='left')
     merged = merged.merge(circuity_clean, on='patch_id', how='left')
-    merged = merged.merge(distance_clean, on='patch_id', how='left')
 
     # drop the redundant features
     cols_dropped = []
@@ -105,7 +98,7 @@ def merge_features():
     print(f"Merged dataset: {n_rows:,} rows x {n_cols} columns\n")
 
     # save the FULL version (with metadata)
-    full_path = PROCESSED_DIR / "patch_training_data_full.csv"
+    full_path = PROCESSED_DIR / "dataset_dropped_features_full.csv"
     merged.to_csv(full_path, index=False)
     print(f"Saved full dataset:  {full_path}")
     print(f"  Columns: {n_cols}\n")
@@ -129,7 +122,7 @@ def merge_features():
     ]
     clean = clean[['patch_id', 'city_code', TARGET_COLUMN] + feature_cols]
 
-    clean_path = PROCESSED_DIR / "patch_training_data_clean.csv"
+    clean_path = PROCESSED_DIR / "dataset_dropped_features_clean.csv"
     clean.to_csv(clean_path, index=False)
     print(f"Saved clean dataset: {clean_path}")
     print(f"  Columns: {len(clean.columns)}\n")
