@@ -23,6 +23,7 @@ FEATURES_TO_DROP = [
     'elev_mean',
     'elev_std',
     'elev_range',
+    'mean_slope',
 ]
 
 TARGET_COLUMN = 'entropy_normalised'
